@@ -17,4 +17,11 @@
         </tr>
         {{endfor productos}}
     </table>
+    <ul>
+        {{foreach carros}}
+            <li>
+                {{id}} - {{nombre}} - {{marca}} - {{estado}}
+            </li>
+        {{endfor carros}}
+    </ul>
 </section>
