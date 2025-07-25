@@ -21,38 +21,66 @@ class Checkout extends PublicController
             "carretilla" => Cart::getAuthCart(Security::getUserId())
         );
         if ($this->isPostBack()) {
-            $PayPalOrder = new \Utilities\Paypal\PayPalOrder(
-                "test" . (time() - 10000000),
-                "http://localhost:64622/mvc202502/index.php?page=Checkout_Error",
-                "http://localhost:64622/mvc202502/index.php?page=Checkout_Accept"
-            );
-
-            foreach ($viewData["carretilla"] as $producto) {
-                $PayPalOrder->addItem(
-                    $producto["productName"],
-                    $producto["productDescription"],
-                    $producto["productId"],
-                    $producto["crrprc"],
-                    0,
-                    $producto["crrctd"],
-                    "DIGITAL_GOODS"
-                );
-            }
-
-            $PayPalRestApi = new \Utilities\PayPal\PayPalRestApi(
-                \Utilities\Context::getContextByKey("PAYPAL_CLIENT_ID"),
-                \Utilities\Context::getContextByKey("PAYPAL_CLIENT_SECRET")
-            );
-            $PayPalRestApi->getAccessToken();
-            $response = $PayPalRestApi->createOrder($PayPalOrder);
-
-            $_SESSION["orderid"] = $response->id;
-            foreach ($response->links as $link) {
-                if ($link->rel == "approve") {
-                    \Utilities\Site::redirectTo($link->href);
+            $processPayment = true;
+            if (isset($_POST["removeOne"]) || isset($_POST["addOne"])) {
+                $productId = intval($_POST["productId"]);
+                $productoDisp = Cart::getProductoDisponible($productId);
+                $amount = isset($_POST["removeOne"]) ? -1 : 1;
+                if ($amount == 1) {
+                    if ($productoDisp["productStock"] - $amount >= 0) {
+                        Cart::addToAuthCart(
+                            $productId,
+                            Security::getUserId(),
+                            $amount,
+                            $productoDisp["productPrice"]
+                        );
+                    }
+                } else {
+                    Cart::addToAuthCart(
+                        $productId,
+                        Security::getUserId(),
+                        $amount,
+                        $productoDisp["productPrice"]
+                    );
                 }
+                $viewData["carretilla"] = Cart::getAuthCart(Security::getUserId());
+                $processPayment = false;
             }
-            die();
+
+            if ($processPayment) {
+                $PayPalOrder = new \Utilities\Paypal\PayPalOrder(
+                    "test" . (time() - 10000000),
+                    "http://localhost:64622/mvc202502/index.php?page=Checkout_Error",
+                    "http://localhost:64622/mvc202502/index.php?page=Checkout_Accept"
+                );
+
+                foreach ($viewData["carretilla"] as $producto) {
+                    $PayPalOrder->addItem(
+                        $producto["productName"],
+                        $producto["productDescription"],
+                        $producto["productId"],
+                        $producto["crrprc"],
+                        0,
+                        $producto["crrctd"],
+                        "DIGITAL_GOODS"
+                    );
+                }
+
+                $PayPalRestApi = new \Utilities\PayPal\PayPalRestApi(
+                    \Utilities\Context::getContextByKey("PAYPAL_CLIENT_ID"),
+                    \Utilities\Context::getContextByKey("PAYPAL_CLIENT_SECRET")
+                );
+                $PayPalRestApi->getAccessToken();
+                $response = $PayPalRestApi->createOrder($PayPalOrder);
+
+                $_SESSION["orderid"] = $response->id;
+                foreach ($response->links as $link) {
+                    if ($link->rel == "approve") {
+                        \Utilities\Site::redirectTo($link->href);
+                    }
+                }
+                die();
+            }
         }
 
         \Views\Renderer::render("paypal/checkout", $viewData);
