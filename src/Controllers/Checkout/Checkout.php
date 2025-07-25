@@ -17,9 +17,9 @@ class Checkout extends PublicController
             2.2) Redirigir al usuario a la página de Paypal para que complete el pago.
         
         */
-        $viewData = array(
-            "carretilla" => Cart::getAuthCart(Security::getUserId())
-        );
+        $viewData = array();
+
+        $carretilla = Cart::getAuthCart(Security::getUserId());
         if ($this->isPostBack()) {
             $processPayment = true;
             if (isset($_POST["removeOne"]) || isset($_POST["addOne"])) {
@@ -43,7 +43,7 @@ class Checkout extends PublicController
                         $productoDisp["productPrice"]
                     );
                 }
-                $viewData["carretilla"] = Cart::getAuthCart(Security::getUserId());
+                $carretilla = Cart::getAuthCart(Security::getUserId());
                 $processPayment = false;
             }
 
@@ -82,7 +82,19 @@ class Checkout extends PublicController
                 die();
             }
         }
-
+        $finalCarretilla = [];
+        $counter = 1;
+        $total = 0;
+        foreach ($carretilla as $prod) {
+            $prod["row"] = $counter;
+            $prod["subtotal"] = number_format($prod["crrprc"] * $prod["crrctd"], 2);
+            $total += $prod["crrprc"] * $prod["crrctd"];
+            $prod["crrprc"] = number_format($prod["crrprc"], 2);
+            $finalCarretilla[] = $prod;
+            $counter++;
+        }
+        $viewData["carretilla"] = $finalCarretilla;
+        $viewData["total"] = number_format($total, 2);
         \Views\Renderer::render("paypal/checkout", $viewData);
     }
 }
